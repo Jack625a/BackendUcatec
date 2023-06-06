@@ -57,10 +57,10 @@ const App = () => {
   const fetchData = async () => {
     try {
       const response = await axios.get(
-        'https://api.airtable.com/v0/appn54LZmOvHNogBg/Producto',
+        'https://api.airtable.com/v0/suidbasededatos/nombredelatabla',
         {
           headers: {
-            Authorization: 'Bearer keyZKCSXHtTz7RkmT',
+            Authorization: 'Bearer suapikey',
           },
         }
       );
