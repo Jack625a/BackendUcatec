@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Airtable",
-    "slug": "Airtable",
+    "name": "Push",
+    "slug": "Push",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,14 +22,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.jack625a.Airtable"
+      "package": "com.jack625a.Push"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "68a7445c-8874-4cda-9c22-2b3370e2ea34"
+        "projectId": "1b55ba45-7af8-41e9-a4b2-00803a1012b0"
       }
     }
   }

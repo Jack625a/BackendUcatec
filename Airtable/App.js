@@ -5,7 +5,31 @@ import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity,
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AntDesign} from '@expo/vector-icons';//Iconos
+//Firebase importacion
+import app from './firebaseconfig';
+import { GoogleAuthProvider, getAuth, signInWithPopup } from 'firebase/auth';
+import {getDatabase} from 'firebase/database';
+import { AppRegistry } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { useState } from 'react';
 
+WebBrowser.maybeCompleteAuthSession();
+
+const auth = getAuth(app);
+const database=getDatabase(app);
+
+const googleLogin = async () => {
+  try {
+    const auth = getAuth();
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+    // El inicio de sesión con Google fue exitoso
+  } catch (error) {
+    // Manejar errores de inicio de sesión con Google
+    console.error(error);
+  }
+};
 
 //Estilos par los componentes
 const styles=StyleSheet.create({
@@ -34,7 +58,7 @@ const styles=StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     marginBottom: 10,
-    marginRight: 10,
+    marginRight: 20,
     padding: 10,
     shadowColor: '#000',
     shadowOffset: {
@@ -48,7 +72,7 @@ const styles=StyleSheet.create({
   },
   image:{
     width:'100%',
-    height:200,
+    height:160,
     borderRadius:10,
     marginBottom:10,
   },
@@ -109,26 +133,58 @@ const styles=StyleSheet.create({
     marginBottom:10,
     padding:10,
   },
-  
-
+  imagenModal:{
+    width:250,
+    height:200,
+    borderRadius:10,
+  },
+  sliderImage:{
+    width:200,
+    height:200,
+    marginRight:15,
+  },
+  menuContainer:{
+    flexDirection:'row',
+    justifyContent:'space-around',
+    borderTopWidth:1,
+    borderTopColor:'#ccc',
+    paddingTop:15,
+  },
+  menuBoton:{
+    alignItems:'center',
+  },
+  menuIcono:{
+    fontSize:25,
+  },
+  menuTexto:{
+    fontSize:12,
+  },
 
 });
 
 //Paso 2 - Modificaremos la funcion principal para obtener los datos y ingresarlo de manera dinamica a un cardview
 const App = () => {
   const [data, setData] = useState([]);
-  //Seleccione de nuestros productos
-  const [selectProduct,setSelectProduct]=useState(null);
-  //Cantidad del producto que desea comprar
-  const [cantidad, setcantidad]=useState(1)
-  //Total a pagar
-  const [total, setTotal]=useState(0)
-   //Nombre del usuario
-   const [usuario, setUsuario]=useState("")
+  const [selectProduct, setSelectProduct] = useState(null);
+  const [cantidad, setCantidad] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [usuario, setUsuario] = useState('');
+  const [imagenes, setImagenes] = useState([]);
+  const [token,setToken]=useState('');
+  const [userInfo,setUserInfo]=useState(null)
+  const [mostrarInfo,setMostrarInfo]=useState(false)
+
+  const[request,response,promptAsync]=Google.useAuthRequest({
+    androidClientId:"1058260854658-gabodl6kdkebedc03u5srnqaoig01ejn.apps.googleusercontent.com",
+    iosClientId:"1058260854658-gpqqoqa616v7ivl1k8sh7q3ibuj015dv.apps.googleusercontent.com",
+    webClientId:"1098904678987-8qbjn8baknpfbd402ssqu0fubrn65sa2.apps.googleusercontent.com"
+  })
+
   useEffect(() => {
     fetchData();
+    sliderConexion();
   }, []);
-  //Paso 1 - Modificacion de la funcion para obtener los datos de la tabla Producto
+
   const fetchData = async () => {
     try {
       const response = await axios.get(
@@ -144,89 +200,111 @@ const App = () => {
       console.error(error);
     }
   };
-//Funciones nuevas
-//Funcion para abrir la pantalla Emergente
-const openModal=(product)=>{
-  setSelectProduct(product);
-  setcantidad(1);
-  calculoTotal(product.fields.Precio,1);
-};
-//Funcion para cerrar la pantalla Emergente
-const closeModal=()=>{
-  setSelectProduct(null);
-}; 
 
-//Funcion para manejar los datos y renderizar
-const renderCard=(product)=>{
-  return (
-    <TouchableOpacity key={product.id} style={styles.card} onPress={() => openModal(product)}>
-      <Image source={{uri:product.fields.Imagen}}
-      style={styles.image}
-      />
-      <Text
-       style={styles.name}
-       >
-        {product.fields.Nombre}
-      </Text>
-      <Text style={styles.price}>
-      {product.fields.Precio} Bs
+  const openModal = (product) => {
+    setSelectProduct(product);
+    setCantidad(1);
+    calculoTotal(product.fields.Precio, 1);
+  };
 
-      </Text>
-    </TouchableOpacity>
-  );
-};
-//funcion para controlar el aumento de la cantidad
-const Addcantidad=()=>{
-  const newcantidad=cantidad+1;
-  setcantidad(newcantidad);
-  calculoTotal(selectProduct.fields.Precio,newcantidad)
-}
-//funcion para controlar el decremento de la cantidad
-const RemoveCantidad=()=>{
-  if (cantidad>1){
-    const newcantidad=cantidad-1;
-    setcantidad(newcantidad)
-    calculoTotal(selectProduct.fields.Precio,newcantidad)
-  }
-};
+  const closeModal = () => {
+    setSelectProduct(null);
+  };
 
-//Funcion para calcular el total que debera pagar el usuario
-const calculoTotal=(price,cantidad)=>{
-  const newTotal=price*cantidad;
-  setTotal(newTotal);
-}
-//Funcion para enviar el pedido a Airtable
-const enviarPedidoAirtable= async (pedido,cantidad,total,usuario) => {
+  const renderCard = (product) => {
+    return (
+      <TouchableOpacity key={product.id} style={styles.card} onPress={() => openModal(product)}>
+        {/* Renderizado de datos */}
+      </TouchableOpacity>
+    );
+  };
+
+  const Addcantidad = () => {
+    const newCantidad = cantidad + 1;
+    setCantidad(newCantidad);
+    calculoTotal(selectProduct.fields.Precio, newCantidad);
+  };
+
+  const RemoveCantidad = () => {
+    if (cantidad > 1) {
+      const newCantidad = cantidad - 1;
+      setCantidad(newCantidad);
+      calculoTotal(selectProduct.fields.Precio, newCantidad);
+    }
+  };
+
+  const calculoTotal = (price, cantidad) => {
+    const newTotal = price * cantidad;
+    setTotal(newTotal);
+  };
+
+  const enviarPedidoAirtable = async (pedido, cantidad, total, usuario) => {
+    try {
+      const apiKey = 'keyZKCSXHtTz7RkmT';
+      const baseId = 'appn54LZmOvHNogBg';
+      const tabla = 'Pedidos';
+      const url = `https://api.airtable.com/v0/${baseId}/${tabla}`;
+      const config = {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      };
+      const datos = {
+        fields: {
+          Pedido: pedido,
+          Cantidad: cantidad,
+          Total: total,
+          Usuario: usuario,
+        },
+      };
+      await axios.post(url, datos, config);
+      console.log('Pedido enviado correctamente...');
+    } catch (error) {
+      console.log('Error al solicitar el pedido', error);
+    }
+  };
+
+  const confirmarCompra = () => {
+    const pedido = selectProduct.fields.Nombre;
+    enviarPedidoAirtable(pedido, cantidad, total, usuario);
+    closeModal();
+  };
+
+  const sliderConexion = async () => {
+    try {
+      const response = await axios.get(
+        'https://api.airtable.com/v0/appn54LZmOvHNogBg/Slider',
+        {
+          headers: {
+            Authorization: 'Bearer keyZKCSXHtTz7RkmT',
+          },
+        }
+      );
+      setImagenes(response.data.records);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+// Funcion Conexion Firebase
+const googleLogin=async()=>{
   try{
-    const apiKey='keyZKCSXHtTz7RkmT';//ReemplAzar por sus apikeys
-    const baseId='appn54LZmOvHNogBg';//ReemplAzar por sus baseId
-    const tabla='Pedidos';
-    const url=`https://api.airtable.com/v0/${baseId}/${tabla}`;
-    const config={
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    };
-    const datos={
-      fields:{
-        Pedido:selectProduct.fields.Nombre,
-        Cantidad: cantidad,
-        Total:total,
-        Usuario:usuario,
-      },
-    };
-    await axios.post(url,datos,config);
-    console.log("Pedido enviado correctamente...");
+    const provider=new Google.GoogleAuthProvider();
+    const userCredenciales=await Google.signInWithPopup(auth,provider)
+    const user=userCredenciales.user;
+    console.log("Inicio de sesion con Exito", user.uid);
   }catch(error){
-    console.log("Error al solicitar el pedido",error);
+    console.log("error no se pudo iniciar sesion ", error.message);
   }
 };
-//Funcion para confirmar la compra
-const confirmarCompra=()=>{
-  const{ Pedido }=selectProduct.fields.Nombre;
-  enviarPedidoAirtable(Pedido,cantidad,total,usuario);
-  closeModal();
+//Funcion conexion token con servicio
+const conexionToken=async()=>{
+  const user=await getLocalUser();
+  if (!user){
+    if(response?.type==="success"){
+      getUserInfo(response.authentication.accessToken)
+    }
+  }
 }
 
 
@@ -235,6 +313,16 @@ const confirmarCompra=()=>{
   return (
     <View style={styles.container}>
     <Text style={styles.titulo}>Nombre de la tienda</Text>
+    <ScrollView horizontal={true}>
+      {imagenes.map((record, index) => (
+        <Image
+          key={index}
+          source={{ uri: record.fields.Url }}
+          style={styles.sliderImage}
+        />
+      ))}
+    </ScrollView>
+
       {data.length> 0? (
         <ScrollView contentContainerStyle={styles.cardContainer} horizontal={true}>
           {data.map((product)=>renderCard(product))}
@@ -251,7 +339,7 @@ const confirmarCompra=()=>{
               {selectProduct.fields.Nombre}
             </Text>
             <Image source={{uri:selectProduct.fields.Imagen}}
-            style={styles.image}/>
+            style={styles.imagenModal}/>
             <Text style={styles.modalText}>
                {selectProduct.fields.Precio} Bs
             </Text>
@@ -297,7 +385,36 @@ const confirmarCompra=()=>{
         </View>
       </View>
       </Modal>
+      <View style={styles.menuContainer}>
+        <TouchableOpacity style={styles.menuBoton}>
+          <AntDesign
+          name="home" style={styles.menuIcono}
+          />
+          <Text style={styles.menuTexto}>Inicio</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuBoton}>
+          <AntDesign
+          name="home" style={styles.menuIcono}
+          />
+          <Text style={styles.menuTexto}>Productos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuBoton}>
+          <AntDesign
+          name="shoppingcart" style={styles.menuIcono}
+          />
+          <Text style={styles.menuTexto}>Carrito</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuBoton} onPress={googleLogin}>
+          <AntDesign
+          name="user" style={styles.menuIcono}
+          />
+          <Text style={styles.menuTexto}>Perfil</Text>
+        </TouchableOpacity>
+        
+      </View>
     </View>
   );
 };
+AppRegistry.registerComponent('Airtable', () => App);
 export default App;
+
